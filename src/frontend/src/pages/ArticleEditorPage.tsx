@@ -92,31 +92,36 @@ export default function ArticleEditorPage({
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    // Reset the input so the same file can be re-selected if needed
+    e.target.value = "";
     try {
       const hash = await uploadFileBlob(file);
       setCoverImageId(hash);
       toast.success("Cover image uploaded");
-    } catch {
-      toast.error("Failed to upload image");
+    } catch (err) {
+      console.error("Image upload error:", err);
+      toast.error("Failed to upload image. Please try again.");
     }
   };
 
   const handleAudioUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    e.target.value = "";
     try {
       const hash = await uploadAudioBlob(file);
       setAudioFileId(hash);
       toast.success("Audio file uploaded");
-    } catch {
-      toast.error("Failed to upload audio");
+    } catch (err) {
+      console.error("Audio upload error:", err);
+      toast.error("Failed to upload audio. Please try again.");
     }
   };
 
-  const buildArticle = (pub: boolean): Article => ({
+  const buildArticle = (pub: boolean, resolvedSlug: string): Article => ({
     id: articleId ?? BigInt(0),
-    title: title.trim(),
-    slug: slug.trim(),
+    title: title.trim() || "Untitled Draft",
+    slug: resolvedSlug,
     excerpt: excerpt.trim(),
     category: category.trim(),
     bodyHtml,
@@ -128,24 +133,37 @@ export default function ArticleEditorPage({
   });
 
   const handleSave = async (pub: boolean) => {
-    if (!title.trim() || !slug.trim()) {
-      toast.error("Title and slug are required");
+    // For publishing, require a title
+    if (pub && !title.trim()) {
+      toast.error("A title is required to publish");
       return;
     }
+    // Auto-generate slug if not set
+    const resolvedSlug =
+      slug.trim() || slugify(title.trim() || `draft-${Date.now()}`);
+
+    // Update slug state so user can see what was auto-generated
+    if (!slug.trim()) {
+      setSlug(resolvedSlug);
+    }
+
     try {
       if (articleId !== undefined) {
         await updateMutation.mutateAsync({
           id: articleId,
-          article: buildArticle(pub),
+          article: buildArticle(pub, resolvedSlug),
         });
         toast.success(pub ? "Article published!" : "Draft saved");
       } else {
-        await createMutation.mutateAsync(buildArticle(pub));
+        await createMutation.mutateAsync(buildArticle(pub, resolvedSlug));
         toast.success(pub ? "Article published!" : "Draft saved");
         navigate({ to: "/admin/dashboard" });
       }
-    } catch {
-      toast.error("Failed to save article");
+    } catch (err) {
+      console.error("Save error:", err);
+      toast.error(
+        "Failed to save. Please check you are logged in and try again.",
+      );
     }
   };
 
@@ -181,7 +199,7 @@ export default function ArticleEditorPage({
         {/* Title */}
         <div className="space-y-1.5">
           <Label htmlFor="title" className="font-body text-sm font-medium">
-            Title *
+            Title
           </Label>
           <Input
             id="title"
@@ -196,7 +214,7 @@ export default function ArticleEditorPage({
         {/* Slug */}
         <div className="space-y-1.5">
           <Label htmlFor="slug" className="font-body text-sm font-medium">
-            URL Slug *
+            URL Slug
           </Label>
           <Input
             id="slug"
@@ -205,12 +223,12 @@ export default function ArticleEditorPage({
               setSlug(e.target.value);
               setSlugManuallySet(true);
             }}
-            placeholder="article-url-slug"
+            placeholder="auto-generated from title"
             className="font-body h-10 bg-card border-border"
             data-ocid="editor.input"
           />
           <p className="font-body text-xs text-muted-foreground">
-            URL: /article/{slug || "your-slug"}
+            URL: /article/{slug || "auto-generated"}
           </p>
         </div>
 
@@ -289,13 +307,10 @@ export default function ArticleEditorPage({
               >
                 <Upload className="h-8 w-8 text-muted-foreground mb-2" />
                 <span className="font-body text-sm text-muted-foreground">
-                  Click to upload cover image
+                  {uploadingImage
+                    ? `Uploading… ${imageProgress}%`
+                    : "Click to upload cover image"}
                 </span>
-                {uploadingImage && (
-                  <span className="font-body text-xs text-gold mt-1">
-                    Uploading… {imageProgress}%
-                  </span>
-                )}
                 <input
                   type="file"
                   accept="image/*"
@@ -337,13 +352,10 @@ export default function ArticleEditorPage({
               >
                 <Music className="h-6 w-6 text-muted-foreground mb-1" />
                 <span className="font-body text-sm text-muted-foreground">
-                  Click to upload audio (MP3, WAV, etc.)
+                  {uploadingAudio
+                    ? `Uploading… ${audioProgress}%`
+                    : "Click to upload audio (MP3, WAV, etc.)"}
                 </span>
-                {uploadingAudio && (
-                  <span className="font-body text-xs text-gold mt-1">
-                    Uploading… {audioProgress}%
-                  </span>
-                )}
                 <input
                   type="file"
                   accept="audio/*"

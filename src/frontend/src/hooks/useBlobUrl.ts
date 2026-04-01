@@ -2,7 +2,10 @@ import { HttpAgent } from "@icp-sdk/core/agent";
 import { useEffect, useState } from "react";
 import { loadConfig } from "../config";
 import { StorageClient } from "../utils/StorageClient";
-import { useInternetIdentity } from "./useInternetIdentity";
+import {
+  deriveIdentityFromPassword,
+  useAdminPassword,
+} from "./useAdminPassword";
 
 const SENTINEL = "!caf!";
 
@@ -32,7 +35,7 @@ export function useBlobUrl(hash?: string | null): string | undefined {
 }
 
 export function useFileUpload() {
-  const { identity } = useInternetIdentity();
+  const { getPassword } = useAdminPassword();
   const [progress, setProgress] = useState(0);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -43,9 +46,14 @@ export function useFileUpload() {
     setError(null);
     try {
       const config = await loadConfig();
+      const password = getPassword();
+      let identity: any = undefined;
+      if (password) {
+        identity = await deriveIdentityFromPassword(password);
+      }
       const agent = new HttpAgent({
         host: config.backend_host,
-        identity: identity || undefined,
+        identity,
       });
       if (config.backend_host?.includes("localhost")) {
         await agent.fetchRootKey();

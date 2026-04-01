@@ -3,6 +3,7 @@ import { Input } from "@/components/ui/input";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { Menu, Search, X } from "lucide-react";
 import { useState } from "react";
+import { useAdminPassword } from "../hooks/useAdminPassword";
 import { useAllCategories } from "../hooks/useQueries";
 
 const NAV_LINKS = [
@@ -19,6 +20,7 @@ export default function Header() {
   const [menuOpen, setMenuOpen] = useState(false);
   const navigate = useNavigate();
   const { data: categories } = useAllCategories();
+  const { isAuthenticated } = useAdminPassword();
 
   const dynamicLinks =
     categories && categories.length > 0
@@ -119,15 +121,27 @@ export default function Header() {
                 <Search className="h-4 w-4" />
               </button>
             )}
-            <Link to="/admin">
-              <Button
-                size="sm"
-                className="bg-gold text-primary-foreground hover:bg-gold/90 font-body text-xs rounded-full px-4 hidden sm:flex"
-                data-ocid="header.button"
-              >
-                Admin Login
-              </Button>
-            </Link>
+            {isAuthenticated ? (
+              <Link to="/admin/dashboard">
+                <Button
+                  size="sm"
+                  className="bg-gold text-primary-foreground hover:bg-gold/90 font-body text-xs rounded-full px-4 hidden sm:flex"
+                  data-ocid="header.button"
+                >
+                  Dashboard
+                </Button>
+              </Link>
+            ) : (
+              <Link to="/admin">
+                <Button
+                  size="sm"
+                  className="bg-gold text-primary-foreground hover:bg-gold/90 font-body text-xs rounded-full px-4 hidden sm:flex"
+                  data-ocid="header.button"
+                >
+                  Admin Login
+                </Button>
+              </Link>
+            )}
             {/* Mobile menu */}
             <button
               type="button"
@@ -165,14 +179,25 @@ export default function Header() {
                   {link.label}
                 </a>
               ))}
-              <Link to="/admin" onClick={() => setMenuOpen(false)}>
-                <Button
-                  size="sm"
-                  className="mt-2 w-full bg-gold text-primary-foreground font-body text-xs rounded-full"
-                >
-                  Admin Login
-                </Button>
-              </Link>
+              {isAuthenticated ? (
+                <Link to="/admin/dashboard" onClick={() => setMenuOpen(false)}>
+                  <Button
+                    size="sm"
+                    className="mt-2 w-full bg-gold text-primary-foreground font-body text-xs rounded-full"
+                  >
+                    Dashboard
+                  </Button>
+                </Link>
+              ) : (
+                <Link to="/admin" onClick={() => setMenuOpen(false)}>
+                  <Button
+                    size="sm"
+                    className="mt-2 w-full bg-gold text-primary-foreground font-body text-xs rounded-full"
+                  >
+                    Admin Login
+                  </Button>
+                </Link>
+              )}
             </nav>
           </div>
         )}

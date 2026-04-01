@@ -5,7 +5,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { Eye, EyeOff, Loader2, Lock, User } from "lucide-react";
 import { motion } from "motion/react";
-import { type FormEvent, useState } from "react";
+import { type FormEvent, useEffect, useState } from "react";
 import { createActorWithConfig } from "../config";
 import {
   deriveIdentityFromPassword,
@@ -20,9 +20,16 @@ export default function AdminLoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const { login, logout } = useAdminPassword();
+  const { login, logout, isAuthenticated } = useAdminPassword();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+
+  // If already authenticated, redirect straight to dashboard
+  useEffect(() => {
+    if (isAuthenticated) {
+      navigate({ to: "/admin/dashboard" });
+    }
+  }, [isAuthenticated, navigate]);
 
   const handleLogin = async (e: FormEvent) => {
     e.preventDefault();
@@ -30,7 +37,7 @@ export default function AdminLoginPage() {
     setLoading(true);
     setError("");
 
-    // Check password locally first -- no backend call needed
+    // Check password locally -- no backend call needed
     if (password !== ADMIN_PASSWORD) {
       setError("Incorrect password. Please try again.");
       setLoading(false);
@@ -53,7 +60,7 @@ export default function AdminLoginPage() {
         }
       }
 
-      // Save the session and navigate
+      // Save the session and clear all cached queries so useActor re-creates with the new identity
       login(password);
       await queryClient.cancelQueries();
       queryClient.clear();
@@ -65,6 +72,8 @@ export default function AdminLoginPage() {
       setLoading(false);
     }
   };
+
+  if (isAuthenticated) return null;
 
   return (
     <main className="min-h-[80vh] flex items-center justify-center px-4">
@@ -169,17 +178,6 @@ export default function AdminLoginPage() {
             )}
           </Button>
         </form>
-
-        {loading && (
-          <div
-            className="mt-4 flex justify-center"
-            data-ocid="admin.loading_state"
-          >
-            <p className="font-body text-xs text-muted-foreground">
-              Checking credentials…
-            </p>
-          </div>
-        )}
       </motion.div>
     </main>
   );
