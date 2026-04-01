@@ -9,6 +9,7 @@ import {
 } from "./useAdminPassword";
 
 const ACTOR_QUERY_KEY = "actor";
+
 export function useActor() {
   const { getPassword, isAuthenticated } = useAdminPassword();
   const queryClient = useQueryClient();
@@ -19,23 +20,18 @@ export function useActor() {
       const password = getPassword();
 
       if (!password) {
-        // Anonymous actor for public pages
         return await createActorWithConfig();
       }
 
-      // Derive the deterministic identity from the stored password
       const identity = await deriveIdentityFromPassword(password);
-      const actor = await createActorWithConfig({
-        agentOptions: { identity },
-      });
+      const actor = await createActorWithConfig({ agentOptions: { identity } });
 
-      // If an admin token is present in the URL, register this identity as admin
       const adminToken = getSecretParameter("caffeineAdminToken") || "";
       if (adminToken) {
         try {
           await actor._initializeAccessControlWithSecret(adminToken);
         } catch {
-          // Already initialized -- safe to ignore
+          // Already initialized
         }
       }
 
@@ -45,7 +41,6 @@ export function useActor() {
     enabled: true,
   });
 
-  // When the actor changes, invalidate dependent queries
   useEffect(() => {
     if (actorQuery.data) {
       queryClient.invalidateQueries({
